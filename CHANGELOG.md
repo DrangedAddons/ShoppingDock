@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- The list picker is a proper dropdown: solid background (the AH no longer shows through), lists grouped under the addon that made them (CraftRoute, CrateCost...; hand-made lists under "Other lists"), sorted A-Z, with a scrollbar when they don't fit.
+- **Rescan list** sits at the top right of the summary, **Rescan item** at the top right of the current item. The row of rescan buttons under Buy is gone, so the list gets that space back.
+- The dock has a solid fill under its border, so nothing behind it shows through under any window look.
+- `SetListPlan` takes an optional third argument, `source`, for the picker's group. Without it the dock reads the calling addon's folder from the call stack.
+- Core `MINOR` 3.
+
 ## 0.2.0
 
 - Pick the list from the dock: click the list name for a menu of every Auctionator shopping list, with how far along each one is. The arrows still step through them.

@@ -5,7 +5,7 @@ A WoW Forever addon (interface 16001) that docks a panel to the auction house's 
 - searches the AH for the current item and shows what buying the rest costs now, against what the list expected
 - **Buy**: a commodity is bought in one purchase for the whole amount (two clicks, Buy now then Confirm at the AH's exact price); a separate auction is bought one stack at a time
 - an amount box to buy more or fewer than the list says, **Skip**, **Start over**, and **Done with list**
-- click the list name to pick any shopping list from a menu (or step through them with `<` `>`); the dock opens on its own at the AH when the current list has things left to buy
+- click the list name to pick any shopping list from a dropdown, grouped by the addon that made it (or step through them with `<` `>`); the dock opens on its own at the AH when the current list has things left to buy
 - **Rescan item** searches the current item again; **Rescan list** searches every item still to buy and shows what each costs now on its row, with a "Now" total in the summary
 
 ShoppingDock reads Auctionator's saved lists and never changes them. It needs Auctionator.
@@ -39,7 +39,7 @@ if ShoppingDock then
 end
 ```
 
-### `ShoppingDock.SetListPlan(listName, plan)` → `true` / `false`
+### `ShoppingDock.SetListPlan(listName, plan [, source])` → `true` / `false`
 
 Tells the dock what you expect each item to cost. Call it **right after** `CreateShoppingList`: creating a list resets the dock's progress for that name, and a plan set before that would be wiped.
 
@@ -53,6 +53,8 @@ Tells the dock what you expect each item to cost. Call it **right after** `Creat
 - `qty`: how many the plan covers
 - `planned`: total copper you expect those `qty` to cost (the dock uses `planned / qty` each)
 - `name`: optional, but pass it. It matches the plan to the list's search term and saves an AH lookup for items the client hasn't cached.
+
+`source` is optional: the group the list goes under in the dock's list picker. Without it the dock uses the calling addon's folder name (read from the call stack), so `"CrateCost"` or `"CraftRoute"` comes out right by itself. Lists nobody registered go under their name's first word when that's a loaded addon, else "Other lists".
 
 Calling it again replaces the list's plan. Without a plan the dock uses Auctionator's price at the moment it first saw the list ("Listed at"). Returns `false` if the arguments are wrong or the copy you reached isn't the running one (only possible if you kept an old reference instead of reading the global).
 
