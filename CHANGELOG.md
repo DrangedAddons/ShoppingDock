@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- The **Shopping list** tab sticking out of the AH window is gone. When the dock is closed it folds into a bag button inside the AH window: at the top right of Auctionator's Shopping tab search row, or in the title bar beside the close button on other tabs, where the AH's own search bar runs to the edge. The number on it is how many items are left on your list. It doesn't show at all when there are no shopping lists.
+- The dock opens in the same frame as the auction house window (it used to wait half a second), and lines up with the window's top.
+- Core `MINOR` 6.
+
 ## 0.4.1
 
 - The `<` `>` arrows beside the list are gone. The list dropdown spans the dock's width.

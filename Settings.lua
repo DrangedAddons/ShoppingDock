@@ -41,7 +41,7 @@ local function Build()
         function() return SD() and SD().IsEnabled() end,
         function(on) if SD() then SD().SetEnabled(on) end end)
     dock:SetPoint("TOPLEFT", 0, 0)
-    local dockNote = UI.Text(body, "The Shopping list button beside the auction house, and the dock opening "
+    local dockNote = UI.Text(body, "The Shopping list button in the auction house window, and the dock opening "
         .. "there by itself when a list has things left to buy.", "GameFontHighlightSmall")
     dockNote:SetPoint("TOPLEFT", dock, "BOTTOMLEFT", 26, -2)
     dockNote:SetPoint("RIGHT", body, "RIGHT", 0, 0)
