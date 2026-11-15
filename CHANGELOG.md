@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- "The list" is now **The plan**. Click any row to buy that item next. A skipped item comes back when you click it. After it's bought, the dock carries on with the next item after it.
+- **Forget list** is back in place of Start over and Done with list. It drops what's been bought and skipped on the list and stops the dock opening for it at the AH. Auctionator's list isn't touched, and it stays in the list menu, marked "forgotten", to start again.
+- Core `MINOR` 4.
+
 ## 0.3.0
 
 - The list picker is a proper dropdown: solid background (the AH no longer shows through), lists grouped under the addon that made them (CraftRoute, CrateCost...; hand-made lists under "Other lists"), sorted A-Z, with a scrollbar when they don't fit.
