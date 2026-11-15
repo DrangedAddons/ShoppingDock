@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- The `<` `>` arrows beside the list are gone. The list dropdown spans the dock's width.
+- Core `MINOR` 5.
+
 ## 0.4.0
 
 - "The list" is now **The plan**. Click any row to buy that item next. A skipped item comes back when you click it. After it's bought, the dock carries on with the next item after it.
