@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5
+
+- The Shopping List button stays in the AH title bar while the dock is open, pressed in: gold-lit with its arrow turned back to point left. Clicking it then closes the dock.
+- Core `MINOR` 10.
+
 ## 0.5.4
 
 - An addon icon (icon.tga for the AddOns list, minimap button and Options page; icon.ico for the DrangedAddons manager), built from the game's bag icon by `tools/make_icon.py`.
