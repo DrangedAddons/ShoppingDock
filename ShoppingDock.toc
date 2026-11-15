@@ -2,7 +2,7 @@
 ## Title: ShoppingDock
 ## Notes: Works through any Auctionator shopping list beside the auction house, one item at a time, with the live price against what the list expected.
 ## Author: Dranged
-## Version: 0.5.5
+## Version: 0.6.0
 ## X-DrangedAddons-Games: _forever_
 ## IconTexture: Interface\AddOns\ShoppingDock\icon
 ## AddonCompartmentFunc: ShoppingDock_OnCompartmentClick

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- **Forget list** deletes the list, from the dock and from Auctionator's shopping lists, after a Yes/Cancel check. It used to leave the list in both, marked "forgotten".
+- Lists forgotten with an earlier version are deleted from Auctionator the next time you log in or open the auction house.
+- Forgotten lists no longer appear in the list menu or count toward showing the Shopping List button.
+- Core `MINOR` 12.
+
 ## 0.5.5
 
 - The Shopping List button stays in the AH title bar while the dock is open, pressed in: gold-lit with its arrow turned back to point left. Clicking it then closes the dock.
