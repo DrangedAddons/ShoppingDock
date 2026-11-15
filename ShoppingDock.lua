@@ -19,7 +19,7 @@
 -- Buying needs a click (the game only allows a purchase from one). A commodity is two clicks:
 -- Buy now asks the AH for the exact price (StartCommoditiesPurchase), then Confirm buys at it.
 
-local MINOR = 1
+local MINOR = 2
 
 local _, NS = ...
 NS = type(NS) == "table" and NS or {}
@@ -36,10 +36,11 @@ local function Active() return _G.ShoppingDock == SD end
 local CALLER = "ShoppingDock"
 -- C_AuctionHouse, looked up when used (not when this file loads)
 local AH = setmetatable({}, { __index = function(_, k) return C_AuctionHouse and C_AuctionHouse[k] end })
-local W, ROW_H, MAX_ROWS, LIST_TOP, FOOT = 380, 18, 40, 268, 40
+local W, ROW_H, MAX_ROWS, LIST_TOP, FOOT = 380, 18, 40, 298, 40
 local GREY, GREEN, RED, GOLD = "|cff8a8a8a", "|cff40ff40", "|cffff5050", "|cffffd100"
 local ICON_DONE = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local BUY_TIMEOUT = 10 -- seconds before a purchase with no answer counts as failed
+local SCAN_TIMEOUT = 5 -- seconds a list rescan waits on one item before moving on
 
 local panel, tab
 local atAH = false
@@ -281,6 +282,24 @@ local function Current()
   return nil, nil, items
 end
 
+local function Remaining(x) return Want(x) - x.rec.bought end
+
+local function FindItem(key)
+  for _, x in ipairs(Items(ActiveName()) or {}) do
+    if x.key == key then return x end
+  end
+end
+
+-- what buying the rest of x costs now: total copper and how many the AH could cover.
+-- nowFor is the amount it was for; once that changes the price is stale.
+local function NoteNow(x, total, covered)
+  x.rec.now = covered > 0 and total or nil
+  x.rec.nowN = covered
+  x.rec.nowFor = Remaining(x)
+end
+
+local function FreshNow(x) return x.rec.nowFor ~= nil and x.rec.nowFor == Remaining(x) end
+
 ------------------------------------------------------------------------------------------------
 -- Searching, quoting and buying
 
@@ -361,16 +380,14 @@ local function OnBrowse()
       return
     end
   end
+  NoteNow(x, 0, 0)
   state = { phase = "none", key = x.key }
   Refresh()
 end
 
--- Commodity listings for what's left of the item: what the cheapest of them would cost.
--- The exact quote waits for the Buy now click (StartCommoditiesPurchase wants one).
-local function OnCommodity(id)
-  local x = Current()
-  if not (x and state.id == id and (state.phase == "search" or state.phase == "none")) then return end
-  local need = Want(x) - x.rec.bought
+-- What buying `need` costs from the commodity listings now (cheapest first, never your own):
+-- total copper, and how many of `need` the AH has.
+local function CommodityCover(id, need)
   local total, left = 0, need
   for i = 1, (AH.GetNumCommoditySearchResults(id) or 0) do
     local r = AH.GetCommoditySearchResultInfo(id, i)
@@ -378,14 +395,44 @@ local function OnCommodity(id)
       local qty = r.quantity - (r.containsOwnerItem and (r.numOwnerItems or r.quantity) or 0)
       local take = math.min(qty, left)
       if take > 0 then total, left = total + take * r.unitPrice, left - take end
-      if left == 0 then break end
+      if left <= 0 then break end
     end
   end
-  if left == need then
+  return total, need - left
+end
+
+-- The same for separate auctions, whole stacks cheapest each first: total, how many it covers.
+local function ItemCover(itemKey, need)
+  local stacks = {}
+  for i = 1, (AH.GetNumItemSearchResults(itemKey) or 0) do
+    local r = AH.GetItemSearchResultInfo(itemKey, i)
+    if r and r.buyoutAmount and r.buyoutAmount > 0 and not r.containsOwnerItem then
+      local qty = math.max(1, r.quantity or 1)
+      stacks[#stacks + 1] = { buyout = r.buyoutAmount, qty = qty, per = r.buyoutAmount / qty }
+    end
+  end
+  table.sort(stacks, function(a, b) return a.per < b.per end)
+  local total, got = 0, 0
+  for _, s in ipairs(stacks) do
+    if got >= need then break end
+    total, got = total + s.buyout, got + s.qty
+  end
+  return total, math.min(got, need)
+end
+
+-- Commodity listings for what's left of the item: what the cheapest of them would cost.
+-- The exact quote waits for the Buy now click (StartCommoditiesPurchase wants one).
+local function OnCommodity(id)
+  local x = Current()
+  if not (x and state.id == id and (state.phase == "search" or state.phase == "none")) then return end
+  local need = Remaining(x)
+  local total, covered = CommodityCover(id, need)
+  NoteNow(x, total, covered)
+  if covered == 0 then
     state = { phase = "none", id = id, key = x.key, kind = "commodity" }
   else
-    state = { phase = "start", id = id, key = x.key, kind = "commodity", need = need - left, estimate = total,
-      short = left > 0 }
+    state = { phase = "start", id = id, key = x.key, kind = "commodity", need = covered, estimate = total,
+      short = covered < need }
   end
   Refresh()
 end
@@ -395,7 +442,8 @@ end
 local function OnItem(itemKey)
   local x = Current()
   if not (x and type(itemKey) == "table" and state.id == itemKey.itemID and state.phase == "search") then return end
-  local need = Want(x) - x.rec.bought
+  local need = Remaining(x)
+  NoteNow(x, ItemCover(itemKey, need))
   local fit, any
   for i = 1, (AH.GetNumItemSearchResults(itemKey) or 0) do
     local r = AH.GetItemSearchResultInfo(itemKey, i)
@@ -478,9 +526,20 @@ local function Skip()
   Search()
 end
 
--- Switch the dock to another list (dir = 1 next, -1 previous).
+-- Put the dock on another list.
+local function SelectList(name)
+  if not (Active() and type(name) == "string" and FindRaw(name)) then return end
+  Store().active = name
+  Track(name).forgotten = nil
+  if panel then
+    panel.scrolled = false
+    panel.offset = 0
+  end
+  Search()
+end
+
+-- dir = 1 next list, -1 previous
 local function Cycle(dir)
-  if not Active() then return end
   local lists = RawLists()
   if #lists == 0 then return end
   local cur = ActiveName()
@@ -489,13 +548,114 @@ local function Cycle(dir)
     if l.name == cur then idx = i end
   end
   idx = ((idx - 1 + dir) % #lists) + 1
-  Store().active = lists[idx].name
-  Track(lists[idx].name).forgotten = nil
-  if panel then
-    panel.scrolled = false
-    panel.offset = 0
+  SelectList(lists[idx].name)
+end
+
+------------------------------------------------------------------------------------------------
+-- Rescanning the whole list: every item not yet bought is searched in turn, and what buying the
+-- rest of it would cost now is kept on its row (rec.now). The current item's own search keeps
+-- it up to date too. rec.nowFor is the amount that price was for: once the amount changes, the
+-- price is stale and isn't shown.
+
+local function ScanSend()
+  local S = state.scan
+  if S.mode == "find" then
+    if AH.SendBrowseQuery then
+      pcall(AH.SendBrowseQuery, { searchString = S.name, sorts = Sorts(), filters = {}, itemClassFilters = {} })
+    end
+  elseif AH.SendSearchQuery and AH.MakeItemKey then
+    pcall(function() AH.SendSearchQuery(AH.MakeItemKey(S.id), Sorts(), true) end)
   end
-  Search()
+end
+
+local function ScanNext()
+  local S = state.scan
+  if state.phase ~= "scan" or not S then return end
+  while true do
+    S.i = S.i + 1
+    local key = S.keys[S.i]
+    if not key then
+      -- done: back to the current item
+      state = { phase = "idle" }
+      Search()
+      return
+    end
+    local x = FindItem(key)
+    if x and not IsDone(x) then
+      S.key, S.name, S.id = key, x.name, x.rec.id
+      S.mode = x.rec.id and "search" or "find"
+      break
+    end
+  end
+  -- an item the AH never answers for doesn't stop the scan
+  local token = {}
+  S.token = token
+  C_Timer.After(SCAN_TIMEOUT, function()
+    if Active() and state.scan == S and S.token == token then ScanNext() end
+  end)
+  if Ready() then ScanSend() else S.waiting = true end
+  Refresh()
+end
+
+local function StartScan()
+  if not (Active() and atAH and AH.SendSearchQuery) then return end
+  CancelQuote()
+  local keys = {}
+  for _, x in ipairs(Items(ActiveName()) or {}) do
+    if not IsDone(x) then keys[#keys + 1] = x.key end
+  end
+  if #keys == 0 then return end
+  state = { phase = "scan", scan = { keys = keys, i = 0 } }
+  ScanNext()
+end
+
+local function StopScan()
+  if state.phase == "scan" then
+    state = { phase = "idle" }
+    Search()
+  end
+end
+
+-- scan answers; each returns true when it used the event
+local function ScanBrowse()
+  local S = state.scan
+  if not (S and S.mode == "find") then return false end
+  local x = FindItem(S.key)
+  if x then
+    for _, r in ipairs(AH.GetBrowseResults and AH.GetBrowseResults() or {}) do
+      local id = r.itemKey and r.itemKey.itemID
+      local keyInfo = id and AH.GetItemKeyInfo and AH.GetItemKeyInfo(r.itemKey)
+      local n = (keyInfo and keyInfo.itemName) or (id and ItemName(id))
+      if n and n:lower() == x.key then
+        x.rec.id = id
+        IndexName(n, id)
+        S.mode, S.id = "search", id
+        if Ready() then ScanSend() else S.waiting = true end
+        return true
+      end
+    end
+    NoteNow(x, 0, 0)
+  end
+  ScanNext()
+  return true
+end
+
+local function ScanCommodity(id)
+  local S = state.scan
+  if not (S and S.mode == "search" and S.id == id) then return false end
+  local x = FindItem(S.key)
+  if x then NoteNow(x, CommodityCover(id, Remaining(x))) end
+  ScanNext()
+  return true
+end
+
+local function ScanItem(itemKey)
+  local S = state.scan
+  if not (S and S.mode == "search" and type(itemKey) == "table" and S.id == itemKey.itemID) then return false end
+  local x = FindItem(S.key)
+  if x then NoteNow(x, ItemCover(itemKey, Remaining(x))) end
+  ScanNext()
+  return true
 end
 
 ------------------------------------------------------------------------------------------------
@@ -509,12 +669,13 @@ Refresh = function()
   panel.prev:SetEnabled(count > 1)
   panel.next:SetEnabled(count > 1)
   if not items then
-    panel.listName:SetText(GREY .. (count > 0 and "Pick a list with the arrows" or "No shopping lists") .. "|r")
+    panel.listName:SetText(GREY .. (count > 0 and "Click to pick a list" or "No shopping lists") .. "|r")
     panel.progress:SetText("")
     panel.summary:SetText(GREY .. "Works through any Auctionator shopping list. Make one in Auctionator's "
       .. "Shopping tab or from an addon (CraftRoute, CrateCost...). New lists open here by themselves.|r")
     panel.item:SetText("") panel.itemInfo:SetText("") panel.icon:Hide()
     panel.buy:Disable() panel.buy:SetText("Buy") panel.skip:Disable() panel.amount:Hide()
+    panel.rescanItem:Disable() panel.rescanList:Disable() panel.rescanList:SetText("Rescan list")
     for _, r in ipairs(panel.rows) do r:Hide() end
     return
   end
@@ -531,11 +692,32 @@ Refresh = function()
     if IsDone(it) then doneN = doneN + 1 end
     if not it.rec.skipped and each then left = left + each * math.max(0, want - it.rec.bought) end
   end
+  -- what the rest costs now, for the items scanned at their current amount
+  local nowTotal, nowPlan, scanned, unscanned, short = 0, 0, 0, 0, 0
+  for _, it in ipairs(items) do
+    if not IsDone(it) then
+      if FreshNow(it) then
+        scanned = scanned + 1
+        nowTotal = nowTotal + (it.rec.now or 0)
+        local pl = PlannedFor(it, it.rec.nowN or 0)
+        if pl and nowPlan then nowPlan = nowPlan + pl else nowPlan = nil end
+        if (it.rec.nowN or 0) < it.rec.nowFor then short = short + 1 end
+      else
+        unscanned = unscanned + 1
+      end
+    end
+  end
+  local nowLine = ""
+  if scanned > 0 then
+    nowLine = "\nNow " .. Money(nowTotal) .. "  " .. Diff(nowTotal, nowPlan)
+      .. (short > 0 and (RED .. "  " .. short .. " short|r") or "")
+      .. (unscanned > 0 and (GREY .. "  (" .. unscanned .. " not scanned)|r") or "")
+  end
   panel.progress:SetText(GOLD .. doneN .. " / " .. #items .. "|r")
   panel.summary:SetText((anyPlan and "Planned " or "Listed at ") .. Money(expected)
     .. (unknown > 0 and (GREY .. "  (" .. unknown .. " unpriced)|r") or "")
     .. "\nSpent " .. Money(spent) .. "  " .. (spent > 0 and Diff(spent, expectedDone) or "")
-    .. "\nLeft " .. Money(left))
+    .. "\nLeft " .. Money(left) .. nowLine)
   -- the current item
   local ph = state.phase
   if x then
@@ -548,7 +730,10 @@ Refresh = function()
     if not panel.amount:HasFocus() then panel.amount:SetText(tostring(need)) end
     local pl = PlannedFor(x, need)
     local lines = { (x.plan and "Planned " or "Listed at ") .. (pl and Money(pl) or "?") }
-    if ph == "search" then lines[#lines + 1] = GREY .. "Searching the AH...|r"
+    if ph == "scan" then
+      local S = state.scan
+      lines[#lines + 1] = GREY .. "Rescanning the list: " .. S.i .. " / " .. #S.keys .. "  " .. (S.name or "") .. "|r"
+    elseif ph == "search" then lines[#lines + 1] = GREY .. "Searching the AH...|r"
     elseif ph == "find" then lines[#lines + 1] = GREY .. "Looking the item up on the AH...|r"
     elseif ph == "start" or ph == "price" then
       lines[#lines + 1] = "Now ~" .. Money(state.estimate) .. "  " .. Diff(state.estimate, PlannedFor(x, state.need))
@@ -585,12 +770,17 @@ Refresh = function()
     panel.buy:SetText("Buy now  ~" .. Money(state.estimate)) panel.buy:Enable()
   elseif ph == "price" then
     panel.buy:SetText("Ask again") panel.buy:Enable()
+  elseif ph == "scan" then
+    panel.buy:SetText("Rescanning...") panel.buy:Disable()
   elseif atAH and (ph == "none" or ph == "idle" or ph == "search" or ph == "find") then
     panel.buy:SetText("Search again") panel.buy:Enable()
   else
     panel.buy:SetText(atAH and "..." or "Buy") panel.buy:Disable()
   end
   panel.skip:SetEnabled(x ~= nil)
+  panel.rescanItem:SetEnabled(atAH and x ~= nil and ph ~= "buying" and ph ~= "scan")
+  panel.rescanList:SetText(ph == "scan" and "Stop rescan" or "Rescan list")
+  panel.rescanList:SetEnabled(atAH and x ~= nil and ph ~= "buying")
   -- the list: done, current, to come
   local n = #items
   local rows = panel.visible or 12
@@ -619,7 +809,15 @@ Refresh = function()
         r.bg:SetColorTexture(0, 0, 0, 0)
       end
       local exp = PlannedFor(it, Want(it))
-      if rec.bought > 0 then
+      if not done and not rec.skipped and FreshNow(it) then
+        if (rec.nowN or 0) == 0 then
+          r.cost:SetText(RED .. "none up|r")
+        else
+          local pl = PlannedFor(it, rec.nowN)
+          local c = (pl and rec.now > pl + 1 and RED) or (pl and rec.now < pl - 1 and GREEN) or "|cffffffff"
+          r.cost:SetText(c .. Money(rec.now) .. "|r" .. (rec.nowN < rec.nowFor and (RED .. " (" .. rec.nowN .. ")|r") or ""))
+        end
+      elseif rec.bought > 0 then
         r.cost:SetText(Each(it) and Diff(rec.spent, PlannedFor(it, rec.bought)) or Money(rec.spent))
       else
         r.cost:SetText(exp and (GREY .. Money(exp) .. "|r") or "")
@@ -638,6 +836,107 @@ local function SaveAmount(box)
   else
     Refresh()
   end
+end
+
+-- The list picker: every Auctionator shopping list, with how far along each is. A click
+-- anywhere else closes it; the wheel scrolls it when there are more lists than rows.
+local MENU_ROWS, MENU_ROW_H = 16, 20
+local menu
+
+local function CloseMenu()
+  if menu then menu.catcher:Hide() end
+end
+
+local function FillMenu()
+  local lists = RawLists()
+  menu.offset = math.max(0, math.min(menu.offset, #lists - MENU_ROWS))
+  local cur = ActiveName()
+  local shown = math.min(#lists, MENU_ROWS)
+  for i, row in ipairs(menu.rows) do
+    local l = lists[menu.offset + i]
+    if i > shown or not l then
+      row:Hide()
+    else
+      local items = Items(l.name) or {}
+      local done = 0
+      for _, it in ipairs(items) do
+        if IsDone(it) then done = done + 1 end
+      end
+      row.text:SetText((l.name == cur and GOLD or "|cffdddddd") .. l.name .. "|r"
+        .. GREY .. "  " .. done .. " / " .. #items .. "|r")
+      row.sel:SetShown(l.name == cur)
+      row.name = l.name
+      row:Show()
+    end
+  end
+  menu:SetHeight(math.max(1, shown) * MENU_ROW_H + 8)
+  menu.empty:SetShown(#lists == 0)
+end
+
+local function BuildMenu()
+  local catcher = CreateFrame("Button", nil, UIParent)
+  catcher:SetAllPoints(UIParent)
+  catcher:SetFrameStrata("DIALOG")
+  catcher:SetScript("OnClick", function(self) self:Hide() end)
+  catcher:Hide()
+  local m = CreateFrame("Frame", nil, catcher, "BackdropTemplate")
+  m:SetFrameLevel(catcher:GetFrameLevel() + 10)
+  m:SetBackdrop({ bgFile = "Interface\Buttons\WHITE8X8", edgeFile = "Interface\Buttons\WHITE8X8", edgeSize = 1 })
+  m:SetBackdropColor(0.03, 0.03, 0.035, 0.95)
+  m:SetBackdropBorderColor(0.25, 0.25, 0.28, 1)
+  m:EnableMouse(true)
+  m:EnableMouseWheel(true)
+  m:SetScript("OnMouseWheel", function(_, d)
+    m.offset = m.offset - d * 3
+    FillMenu()
+  end)
+  m.catcher, m.offset, m.rows = catcher, 0, {}
+  m.empty = m:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+  m.empty:SetPoint("LEFT", 8, 0)
+  m.empty:SetText(GREY .. "No shopping lists yet.|r")
+  for i = 1, MENU_ROWS do
+    local row = CreateFrame("Button", nil, m)
+    row:SetHeight(MENU_ROW_H)
+    row:SetPoint("TOPLEFT", 4, -4 - (i - 1) * MENU_ROW_H)
+    row:SetPoint("RIGHT", m, "RIGHT", -4, 0)
+    row.sel = row:CreateTexture(nil, "BACKGROUND")
+    row.sel:SetAllPoints()
+    row.sel:SetColorTexture(1, 0.82, 0, 0.25)
+    local hl = row:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.08)
+    row.text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.text:SetPoint("LEFT", 6, 0)
+    row.text:SetPoint("RIGHT", -6, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(false)
+    row:SetScript("OnClick", function(self)
+      catcher:Hide()
+      SelectList(self.name)
+    end)
+    m.rows[i] = row
+  end
+  menu = m
+end
+
+local function ToggleMenu(anchor)
+  if not Active() then return end
+  if not menu then BuildMenu() end
+  if menu.catcher:IsShown() then
+    menu.catcher:Hide()
+    return
+  end
+  menu:ClearAllPoints()
+  menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+  menu:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+  -- start with the current list in view
+  menu.offset = 0
+  local cur = ActiveName()
+  for i, l in ipairs(RawLists()) do
+    if l.name == cur then menu.offset = i - 3 end
+  end
+  FillMenu()
+  menu.catcher:Show()
 end
 
 local function Build()
@@ -666,10 +965,24 @@ local function Build()
   p.next = Button(p, ">", 24, 22, function() Cycle(1) end)
   p.next:SetPoint("TOPRIGHT", -16, -44)
   Tip(p.next, "Next list", "Switch to another Auctionator shopping list.")
-  p.listName = p:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-  p.listName:SetPoint("LEFT", p.prev, "RIGHT", 6, 0)
-  p.listName:SetPoint("RIGHT", p.next, "LEFT", -6, 0)
+  p.pick = CreateFrame("Button", nil, p, "BackdropTemplate")
+  p.pick:SetPoint("TOPLEFT", p.prev, "TOPRIGHT", 6, 0)
+  p.pick:SetPoint("BOTTOMRIGHT", p.next, "BOTTOMLEFT", -6, 0)
+  p.pick:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+  p.pick:SetBackdropColor(0.1, 0.1, 0.11, 1)
+  p.pick:SetBackdropBorderColor(0.25, 0.25, 0.28, 1)
+  local hl = p.pick:CreateTexture(nil, "HIGHLIGHT")
+  hl:SetAllPoints()
+  hl:SetColorTexture(1, 1, 1, 0.08)
+  p.listName = p.pick:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+  p.listName:SetPoint("LEFT", 6, 0)
+  p.listName:SetPoint("RIGHT", -16, 0)
   p.listName:SetWordWrap(false)
+  local arrow = p.pick:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+  arrow:SetPoint("RIGHT", -5, 0)
+  arrow:SetText("v")
+  p.pick:SetScript("OnClick", function(self) ToggleMenu(self) end)
+  Tip(p.pick, "Shopping lists", "Click to pick which Auctionator shopping list the dock works through.")
   -- summary
   p.summary = p:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
   p.summary:SetPoint("TOPLEFT", 18, -74)
@@ -721,6 +1034,18 @@ local function Build()
   p.skip = Button(p, "Skip", 62, 24, Skip)
   p.skip:SetPoint("TOPRIGHT", -16, -218)
   Tip(p.skip, "Skip", "Move on without buying this one.")
+  -- Rescan item, Rescan list
+  local half = math.floor((W - 32 - 8) / 2)
+  p.rescanItem = Button(p, "Rescan item", half, 22, function() if Active() then Search() end end)
+  p.rescanItem:SetPoint("TOPLEFT", 16, -248)
+  Tip(p.rescanItem, "Rescan item", "Search the AH again for the item you're on.")
+  p.rescanList = Button(p, "Rescan list", half, 22, function()
+    if state.phase == "scan" then StopScan() else StartScan() end
+  end)
+  p.rescanList:SetPoint("TOPRIGHT", -16, -248)
+  Tip(p.rescanList, "Rescan list", "Search the AH for every item still to buy, one after another, and show what "
+    .. "each costs now on its row. Red is over what the list expected, green under. A number in brackets "
+    .. "is all the AH has.")
   -- the list
   local lt = p:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
   lt:SetPoint("TOPLEFT", 18, -LIST_TOP + 16)
@@ -778,6 +1103,8 @@ local function Build()
   Tip(hide, "Done with list", "Stop opening the dock for this list when you visit the auction house. "
     .. "It comes back if the list changes. Auctionator's list isn't touched.")
   p:SetScript("OnHide", function()
+    CloseMenu()
+    if state.phase == "scan" then state = { phase = "idle" } end
     CancelQuote()
     if state.phase == "price" or state.phase == "ready" or state.phase == "start" then state = { phase = "idle" } end
   end)
@@ -1002,13 +1329,20 @@ local function OnEvent(e, a, b)
     if state.waiting then
       state.waiting = nil
       SendQuery()
+    elseif state.scan and state.scan.waiting then
+      state.scan.waiting = nil
+      ScanSend()
     end
   elseif e == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" then
-    OnBrowse()
+    if state.phase == "scan" then ScanBrowse() else OnBrowse() end
   elseif e == "COMMODITY_SEARCH_RESULTS_UPDATED" or e == "COMMODITY_SEARCH_RESULTS_ADDED" then
-    OnCommodity(a)
+    if state.phase == "scan" then
+      if e == "COMMODITY_SEARCH_RESULTS_UPDATED" then ScanCommodity(a) end
+    else
+      OnCommodity(a)
+    end
   elseif e == "ITEM_SEARCH_RESULTS_UPDATED" then
-    OnItem(a)
+    if state.phase == "scan" then ScanItem(a) else OnItem(a) end
   elseif e == "COMMODITY_PRICE_UPDATED" then
     -- the AH's quote: a, b = unit price, total
     if state.phase == "price" then

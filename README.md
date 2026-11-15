@@ -5,7 +5,8 @@ A WoW Forever addon (interface 16001) that docks a panel to the auction house's 
 - searches the AH for the current item and shows what buying the rest costs now, against what the list expected
 - **Buy**: a commodity is bought in one purchase for the whole amount (two clicks, Buy now then Confirm at the AH's exact price); a separate auction is bought one stack at a time
 - an amount box to buy more or fewer than the list says, **Skip**, **Start over**, and **Done with list**
-- `<` `>` switch between lists; the dock opens on its own at the AH when the current list has things left to buy
+- click the list name to pick any shopping list from a menu (or step through them with `<` `>`); the dock opens on its own at the AH when the current list has things left to buy
+- **Rescan item** searches the current item again; **Rescan list** searches every item still to buy and shows what each costs now on its row, with a "Now" total in the summary
 
 ShoppingDock reads Auctionator's saved lists and never changes them. It needs Auctionator.
 
@@ -15,7 +16,7 @@ ShoppingDock reads Auctionator's saved lists and never changes them. It needs Au
 
 **Embedded**: an addon that makes shopping lists copies `ShoppingDock.lua` into itself, so its players don't need a second download. See [Embedding](#embedding).
 
-Either way, only one dock ever runs. Every copy of `ShoppingDock.lua` carries a version (`MINOR`). At load the newest copy takes the global `ShoppingDock` table, and the others don't do anything: no frames, no AH searches, no event handling. With the same `MINOR` in two places, the first one loaded wins. If CraftRoute and CrateCost both embed it and the player also has the standalone addon, there's still one dock and one *Shopping list* button. It shows both addons' lists, opens on whichever list was made most recently, and the arrows switch between them.
+Either way, only one dock ever runs. Every copy of `ShoppingDock.lua` carries a version (`MINOR`). At load the newest copy takes the global `ShoppingDock` table, and the others don't do anything: no frames, no AH searches, no event handling. With the same `MINOR` in two places, the first one loaded wins. If CraftRoute and CrateCost both embed it and the player also has the standalone addon, there's still one dock and one *Shopping list* button. It shows both addons' lists, opens on whichever list was made most recently, and the list menu switches between them.
 
 ## Slash commands
 
