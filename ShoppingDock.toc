@@ -4,7 +4,7 @@
 ## Author: Dranged
 ## Version: 0.5.4
 ## X-DrangedAddons-Games: _forever_
-## IconTexture: Interface\Icons\INV_Misc_Bag_10
+## IconTexture: Interface\AddOns\ShoppingDock\icon
 ## AddonCompartmentFunc: ShoppingDock_OnCompartmentClick
 ## Dependencies: Auctionator
 ## SavedVariables: ShoppingDockDB

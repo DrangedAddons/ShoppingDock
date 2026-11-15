@@ -12,7 +12,7 @@
 local ADDON, NS = ...
 local UI = NS.UI
 
-NS.ICON = "Interface\\Icons\\INV_Misc_Bag_10"
+NS.ICON = "Interface\\AddOns\\ShoppingDock\\icon"
 
 function NS.Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cffffd100ShoppingDock|r: " .. tostring(msg))
