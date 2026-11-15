@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.2
+
+- The Shopping List button moves up to the AH window's title bar, left of the close button, the same spot on every tab. It reads **Shopping List**, with the bag icon, the number of items left, and an arrow pointing right to where the dock opens. The tab-row button from 0.5.1 is gone.
+- Core `MINOR` 8.
+
 ## 0.5.1
 
 - The Shopping list button moves to the AH's bottom tab row, right of Auctionator's tabs, drawn like those tabs. It stays in that spot on every tab, where the search row and title bar spots it had in 0.5.0 clashed with buttons on some of Auctionator's tabs. It shows the number of items left and opens the dock. It doesn't change the AH's view.

@@ -2,7 +2,7 @@
 
 A WoW Forever addon (interface 16001) that docks a panel to the auction house's right edge and works through any [Auctionator](https://www.curseforge.com/wow/addons/auctionator) shopping list one item at a time:
 
-- opens with the auction house window when the list you're on has things left to buy; closed, it folds into a **Shopping list** button in the AH's bottom tab row, right of Auctionator's tabs, shown only while there's at least one shopping list. The number on it is how many items are left.
+- opens with the auction house window when the list you're on has things left to buy; closed, it folds into a **Shopping List ▸** button in the AH window's title bar, left of the close button, shown only while there's at least one shopping list. The number on it is how many items are left.
 - searches the AH for the current item and shows what buying the rest costs now, against what the list expected
 - **Buy**: a commodity is bought in one purchase for the whole amount (two clicks, Buy now then Confirm at the AH's exact price); a separate auction is bought one stack at a time
 - **The plan**: every item on the list with what it's expected to cost (or costs now, after a rescan). Click a row to buy that item next.
