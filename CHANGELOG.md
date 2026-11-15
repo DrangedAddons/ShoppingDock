@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4
+
+- An addon icon (icon.tga for the AddOns list, minimap button and Options page; icon.ico for the DrangedAddons manager), built from the game's bag icon by `tools/make_icon.py`.
+
 ## 0.5.3
 
 - The plan has a scrollbar when it has more items than fit: a thin track on the right with a thumb you can drag (the mouse wheel still works).
