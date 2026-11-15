@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3
+
+- The plan has a scrollbar when it has more items than fit: a thin track on the right with a thumb you can drag (the mouse wheel still works).
+- Core `MINOR` 9.
+
 ## 0.5.2
 
 - The Shopping List button moves up to the AH window's title bar, left of the close button, the same spot on every tab. It reads **Shopping List**, with the bag icon, the number of items left, and an arrow pointing right to where the dock opens. The tab-row button from 0.5.1 is gone.
