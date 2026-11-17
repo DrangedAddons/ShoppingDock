@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.2
+
+- A purchase is only marked failed when nothing says it went through. The AH can send an error and still sell you the item (you get "You won an auction for ..." in chat). The dock used to take that error as a failure, leave the item unbought and search again, so pressing Buy again bought it twice.
+- Now an error or no answer puts the dock on "Checking the purchase went through..." for 5 more seconds, with Buy off. It counts the purchase on the AH's purchase event or on the "You won an auction for ..." chat line, whichever comes first, and only once.
+- If neither comes, the dock searches again and keeps watching: a "You won" line up to 2 minutes later still counts it. Until then the item shows a red line telling you to check chat before buying it again.
+- Purchase answers count with the dock closed too. The chat message names the AH error code when there is one.
+- Core `MINOR` 15.
+
 ## 0.7.1
 
 - **Reset list** clears the rescan results too: no prices on The plan's rows, no "Now" line in the summary, and no more/less-than-expected marks on the item. A rescan still running stops. The dock no longer searches the current item straight after a reset; Rescan item, Rescan list or Search again does.
