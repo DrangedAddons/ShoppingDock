@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+- **Reset list** (bottom right) starts the list over so it can be bought again: what's been bought, spent and skipped goes back to zero. The list, its expected prices and Auctionator's list stay.
+- **Forget list** is now **Delete list**, at the bottom left with Auctionator's trash icon. It still asks first, then deletes the list from the dock and from Auctionator.
+- Core `MINOR` 13.
+
 ## 0.6.0
 
 - **Forget list** deletes the list, from the dock and from Auctionator's shopping lists, after a Yes/Cancel check. It used to leave the list in both, marked "forgotten".
