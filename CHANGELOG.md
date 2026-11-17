@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- **Reset list** clears the rescan results too: no prices on The plan's rows, no "Now" line in the summary, and no more/less-than-expected marks on the item. A rescan still running stops. The dock no longer searches the current item straight after a reset; Rescan item, Rescan list or Search again does.
+- Core `MINOR` 14.
+
 ## 0.7.0
 
 - **Reset list** (bottom right) starts the list over so it can be bought again: what's been bought, spent and skipped goes back to zero. The list, its expected prices and Auctionator's list stay.

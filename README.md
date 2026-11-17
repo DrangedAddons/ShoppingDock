@@ -6,7 +6,7 @@ A WoW Forever addon (interface 16001) that docks a panel to the auction house's 
 - searches the AH for the current item and shows what buying the rest costs now, against what the list expected
 - **Buy**: a commodity is bought in one purchase for the whole amount (two clicks, Buy now then Confirm at the AH's exact price); a separate auction is bought one stack at a time
 - **The plan**: every item on the list with what it's expected to cost (or costs now, after a rescan). Click a row to buy that item next.
-- an amount box to buy more or fewer than the list says, **Skip**, **Reset list** (bottom right: start the list over to buy it again; the list and its expected prices stay) and **Delete list** (bottom left, with a trash icon: after asking, deletes the list from the dock and from Auctionator's shopping lists)
+- an amount box to buy more or fewer than the list says, **Skip**, **Reset list** (bottom right: start the list over to buy it again and clear the rescan prices; the list and its expected prices stay) and **Delete list** (bottom left, with a trash icon: after asking, deletes the list from the dock and from Auctionator's shopping lists)
 - click the list name to pick any shopping list from a dropdown, grouped by the addon that made it; the dock opens on its own at the AH when the current list has things left to buy
 - **Rescan item** searches the current item again; **Rescan list** searches every item still to buy and shows what each costs now on its row, with a "Now" total in the summary
 
