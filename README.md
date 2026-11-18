@@ -60,6 +60,26 @@ Tells the dock what you expect each item to cost. Call it **right after** `Creat
 
 Calling it again replaces the list's plan. Without a plan the dock uses Auctionator's price at the moment it first saw the list ("Listed at"). Returns `false` if the arguments are wrong or the copy you reached isn't the running one (only possible if you kept an old reference instead of reading the global).
 
+### `ShoppingDock.SetCraftList(listName, craft [, source])` → `true` / `false`
+
+A craft list: one craft's reagents, and a crafts count the player changes in the dock. Use it in place of `CreateShoppingList` + `SetListPlan`: the dock makes (or replaces) the Auctionator list under `listName` itself, and rewrites it when the count changes.
+
+```lua
+ShoppingDock.SetCraftList("CraftRoute: Hide of the Wild", {
+  id = 18510, name = "Hide of the Wild", icon = icon, -- id: the item made (nil for an enchant)
+  makes = 1,          -- items one craft makes
+  count = 3,          -- crafts to start on
+  sell = 2100000,     -- optional: copper one craft's items sell for (for the profit line)
+  reagents = {
+    { id = 8171, name = "Rugged Leather", per = 30, have = 10, price = 12000 },
+    { id = 14341, name = "Rune Thread", per = 8, have = 14, price = 50, vendor = true },
+  },
+})
+```
+
+- `per`: needed for one craft. `have`: how many the player has (default: bags + bank). `price`: copper each, for the expected cost. `vendor = true`: a vendor sells it, so it isn't bought at the AH (the header lists it).
+- What to buy of each is `per × count − have`, less what's been bought. The count is saved with the list. Calling it again for the same name starts the list over at the new count.
+
 ### `ShoppingDock.ShowShoppingList(listName)`
 
 Makes `listName` the dock's list and opens the dock. Does nothing while the player has *Show shopping list dock* turned off.

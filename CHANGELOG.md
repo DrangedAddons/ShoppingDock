@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0
+
+- **Craft lists.** An addon can send one craft to the dock instead of a fixed list: `ShoppingDock.SetCraftList(listName, craft)` with one craft's reagents. The dock shows a header for it: the item's icon and name, a **Crafts** count with - and + (Shift for 10), the cost of 1 and of the count, the profit when the addon sends a sale price, and the vendor reagents to pick up.
+- Change the crafts count and what to buy follows: per craft x count, less what you had when the list was made, less what's been bought. The Auctionator list is rewritten to the new amounts a moment later. The count is saved with the list, so the dock opens on the last one you set.
+- A craft list's plan rows have columns: have/need for the count, price each, total.
+- Reset list on a craft list counts your bags and bank again.
+- Everything below the list picker moves down under the craft header; other lists look the same as before.
+- Core `MINOR` 16.
+
 ## 0.7.2
 
 - A purchase is only marked failed when nothing says it went through. The AH can send an error and still sell you the item (you get "You won an auction for ..." in chat). The dock used to take that error as a failure, leave the item unbought and search again, so pressing Buy again bought it twice.
