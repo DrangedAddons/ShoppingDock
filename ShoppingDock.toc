@@ -4,6 +4,10 @@
 ## Author: Dranged
 ## Version: 0.8.0
 ## X-DrangedAddons-Games: _forever_
+## X-DrangedHub-Frame: ShoppingDockSettings
+## X-DrangedHub-Open: /shoppingdock config
+## X-DrangedHub-Crop: 40
+## X-DrangedHub-Actions: Shopping list=/shoppingdock
 ## IconTexture: Interface\AddOns\ShoppingDock\icon
 ## AddonCompartmentFunc: ShoppingDock_OnCompartmentClick
 ## Dependencies: Auctionator
